@@ -1,24 +1,10 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const db = require('./database');
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-
-// Database
-const db = new sqlite3.Database(path.join(__dirname, 'database.db'));
-
-db.run(`
-  CREATE TABLE IF NOT EXISTS reservations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    room_id INTEGER NOT NULL,
-    user_name TEXT NOT NULL,
-    start_time TEXT NOT NULL,
-    end_time TEXT NOT NULL
-  )
-`);
 
 // Utility
 function isFuture(date) {
@@ -135,7 +121,6 @@ app.delete('/reservations/:id', (req, res) => {
     }
   );
 });
-
 
 // Start server
 app.listen(PORT, () => {

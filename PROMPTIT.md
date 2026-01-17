@@ -373,3 +373,339 @@ Tests (Jest)
 Docker setup
 
 Just say the word 🚀
+
+
+PROMPT 3
+-----------------------------------------------------
+Sinä sanoit:
+I need an endpoint to show all reservations made to a specific room, so search with room id
+
+Perfect — this is a very common and clean REST endpoint 👍
+We’ll add one GET endpoint that lists all reservations for a specific room.
+
+✅ Endpoint Design
+GET /reservations/room/:roomId
+
+
+Example:
+
+GET /reservations/room/1
+
+🧠 What This Endpoint Does
+
+Filters reservations by room_id
+
+Orders them by start_time
+
+Returns an empty array if no reservations exist
+
+Does not break your existing endpoints
+
+🧩 Add This Route to index.js
+
+👉 Place this above your DELETE /reservations/:id route
+(order matters because of :id)
+
+// 2️⃣ Get reservations by room ID
+app.get('/reservations/room/:roomId', (req, res) => {
+  const { roomId } = req.params;
+
+  db.all(
+    `
+    SELECT *
+    FROM reservations
+    WHERE room_id = ?
+    ORDER BY start_time
+    `,
+    [roomId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      res.json(rows); // empty array if none found
+    }
+  );
+});
+
+🧪 How to Test in Postman
+Request setup
+
+Method: GET
+
+URL:
+
+http://localhost:3000/reservations/room/1
+
+Expected response
+[
+  {
+    "id": 3,
+    "room_id": 1,
+    "user_name": "Alice",
+    "start_time": "2026-01-20T10:00:00",
+    "end_time": "2026-01-20T12:00:00"
+  }
+]
+
+
+If there are no reservations:
+
+[]
+
+⚠️ Important Routing Note (Very Important)
+
+These two routes must be ordered correctly:
+
+app.get('/reservations/room/:roomId', ...);
+app.delete('/reservations/:id', ...);
+
+
+If reversed, Express will think:
+
+room = "room"
+
+
+and your route will break.
+
+✅ Your API Now Supports
+Feature	Status
+Create reservation	✅
+List all reservations	✅
+List by room	✅
+Delete reservation	✅
+Prevent overlaps	✅
+Validate time rules	✅
+Want to go further?
+
+I can help you add:
+
+Date range filtering
+
+Pagination
+
+Room availability endpoint
+
+Update reservation
+
+SQL indexes for performance
+
+Just tell me 🚀
+
+PROMPT 4
+------------------------------------------------------------
+i want to move this part:
+
+const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+const app = express();
+const PORT = 3000;
+
+app.use(express.json());
+
+// Database
+const db = new sqlite3.Database(path.join(__dirname, 'database.db'));
+
+db.run(
+  CREATE TABLE IF NOT EXISTS reservations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id INTEGER NOT NULL,
+    user_name TEXT NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL
+  )
+);
+
+to database.js file, and then use the connection from there, how do i achieve this
+
+This is a great refactor 👍
+We’ll move all database logic into database.js and export a reusable SQLite connection.
+
+I’ll show you the clean, correct Node.js way to do this.
+
+🎯 Goal
+
+Move DB setup + table creation to database.js
+
+Reuse the same DB connection everywhere
+
+Keep index.js clean
+
+📁 Final Project Structure
+reservation-api/
+│
+├── database.db
+├── database.js   ✅ NEW
+├── index.js
+├── package.json
+└── node_modules/
+
+🗄️ Step 1 — Create database.js
+
+Create a new file called database.js and paste this:
+
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+// Create database connection
+const db = new sqlite3.Database(
+  path.join(__dirname, 'database.db'),
+  (err) => {
+    if (err) {
+      console.error('Failed to connect to database:', err.message);
+    } else {
+      console.log('Connected to SQLite database.');
+    }
+  }
+);
+
+// Create tables
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS reservations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_id INTEGER NOT NULL,
+      user_name TEXT NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL
+    )
+  `);
+});
+
+// Export the database connection
+module.exports = db;
+
+
+✅ This file:
+
+Opens the database once
+
+Ensures tables exist
+
+Exports db for reuse
+
+🚀 Step 2 — Update index.js
+
+Now remove all DB-related code from index.js and replace it with this.
+
+❌ REMOVE from index.js
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+const db = new sqlite3.Database(path.join(__dirname, 'database.db'));
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS reservations (
+    ...
+  )
+`);
+
+✅ UPDATED index.js
+const express = require('express');
+const db = require('./database'); // 👈 import DB
+
+const app = express();
+const PORT = 3000;
+
+app.use(express.json());
+
+// Create reservation
+app.post('/reservations', (req, res) => {
+  const { room_id, user_name, start_time, end_time } = req.body;
+
+  if (new Date(start_time) >= new Date(end_time)) {
+    return res.status(400).json({ error: 'Start time must be before end time' });
+  }
+
+  if (new Date(start_time) <= new Date()) {
+    return res.status(400).json({ error: 'Reservations must be in the future' });
+  }
+
+  const overlapQuery = `
+    SELECT 1 FROM reservations
+    WHERE room_id = ?
+    AND start_time < ?
+    AND end_time > ?
+  `;
+
+  db.get(overlapQuery, [room_id, end_time, start_time], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (row) {
+      return res.status(409).json({ error: 'Room already reserved' });
+    }
+
+    db.run(
+      `INSERT INTO reservations (room_id, user_name, start_time, end_time)
+       VALUES (?, ?, ?, ?)`,
+      [room_id, user_name, start_time, end_time],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ id: this.lastID });
+      }
+    );
+  });
+});
+
+// List all reservations
+app.get('/reservations', (req, res) => {
+  db.all(`SELECT * FROM reservations ORDER BY start_time`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// Get reservations by room
+app.get('/reservations/room/:roomId', (req, res) => {
+  db.all(
+    `SELECT * FROM reservations WHERE room_id = ? ORDER BY start_time`,
+    [req.params.roomId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
+// Delete reservation
+app.delete('/reservations/:id', (req, res) => {
+  db.run(
+    `DELETE FROM reservations WHERE id = ?`,
+    [req.params.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Reservation not found' });
+      }
+      res.json({ message: 'Reservation deleted' });
+    }
+  );
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
+
+✅ Why This Pattern Is Correct
+
+✔ Single DB connection
+✔ No duplicate table creation
+✔ Clean separation of concerns
+✔ Easy to reuse in future files (controllers, services, tests)
+
+🔥 Next-Level Improvements (Optional)
+
+If you want to go further, I can show you how to:
+
+Add a close() handler on shutdown
+
+Use db.prepare() for performance
+
+Split routes into controllers
+
+Add migrations
+
+Use async/await with sqlite
+
+Just say the word 👌
