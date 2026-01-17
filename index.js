@@ -96,6 +96,27 @@ app.get('/reservations', (req, res) => {
   );
 });
 
+app.get('/reservations/room/:roomId', (req, res) => {
+  const { roomId } = req.params;
+
+  db.all(
+    `
+    SELECT *
+    FROM reservations
+    WHERE room_id = ?
+    ORDER BY start_time
+    `,
+    [roomId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows); // empty array if none found
+    }
+  );
+});
+
+
 // 3️⃣ Delete Reservation
 app.delete('/reservations/:id', (req, res) => {
   const { id } = req.params;
@@ -114,6 +135,7 @@ app.delete('/reservations/:id', (req, res) => {
     }
   );
 });
+
 
 // Start server
 app.listen(PORT, () => {
