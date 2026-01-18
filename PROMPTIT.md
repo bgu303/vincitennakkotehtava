@@ -709,3 +709,207 @@ Add migrations
 Use async/await with sqlite
 
 Just say the word 👌
+
+PROMPT 5
+----------------------------------------------------
+
+I want to only keep the server logic in index.js, move all of the reservation logic to its own folder called routes/reservations.js, I want to use express Router logic.
+
+Below is a clean, production-style Express setup using express.Router(), where:
+
+index.js contains only server setup and wiring
+
+All reservation logic lives in routes/reservations.js
+
+🎯 Goal
+
+Keep index.js minimal
+
+Move reservation routes into their own module
+
+Use Express Router correctly
+
+📁 Final Project Structure
+reservation-api/
+│
+├── database.db
+├── database.js
+├── index.js
+└── routes/
+    └── reservations.js
+
+1️⃣ routes/reservations.js
+
+All reservation-related endpoints are defined here.
+
+const express = require('express');
+const router = express.Router();
+const db = require('../database');
+
+// Create reservation
+router.post('/', (req, res) => {
+  const { room_id, user_name, start_time, end_time } = req.body;
+
+  if (!room_id || !user_name || !start_time || !end_time) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
+
+  if (new Date(start_time) >= new Date(end_time)) {
+    return res.status(400).json({ error: 'Start time must be before end time' });
+  }
+
+  if (new Date(start_time) <= new Date()) {
+    return res.status(400).json({ error: 'Reservations must be in the future' });
+  }
+
+  const overlapQuery = `
+    SELECT 1 FROM reservations
+    WHERE room_id = ?
+      AND start_time < ?
+      AND end_time > ?
+  `;
+
+  db.get(overlapQuery, [room_id, end_time, start_time], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (row) {
+      return res.status(409).json({
+        error: 'Room already reserved for this time period'
+      });
+    }
+
+    db.run(
+      `
+      INSERT INTO reservations (room_id, user_name, start_time, end_time)
+      VALUES (?, ?, ?, ?)
+      `,
+      [room_id, user_name, start_time, end_time],
+      function (err) {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+
+        res.status(201).json({
+          id: this.lastID,
+          room_id,
+          user_name,
+          start_time,
+          end_time
+        });
+      }
+    );
+  });
+});
+
+// List all reservations
+router.get('/', (req, res) => {
+  db.all(
+    `SELECT * FROM reservations ORDER BY start_time`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// List reservations by room
+router.get('/room/:roomId', (req, res) => {
+  db.all(
+    `
+    SELECT *
+    FROM reservations
+    WHERE room_id = ?
+    ORDER BY start_time
+    `,
+    [req.params.roomId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// Delete reservation
+router.delete('/:id', (req, res) => {
+  db.run(
+    `DELETE FROM reservations WHERE id = ?`,
+    [req.params.id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Reservation not found' });
+      }
+
+      res.json({ message: 'Reservation deleted' });
+    }
+  );
+});
+
+module.exports = router;
+
+2️⃣ index.js
+
+This file now only handles server setup and route mounting.
+
+const express = require('express');
+const reservationsRouter = require('./routes/reservations');
+
+const app = express();
+const PORT = 3000;
+
+app.use(express.json());
+
+// Mount routes
+app.use('/reservations', reservationsRouter);
+
+// Health check (optional)
+app.get('/', (req, res) => {
+  res.send('Reservation API is running');
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
+
+🧪 Available Endpoints
+Method	Endpoint
+POST	/reservations
+GET	/reservations
+GET	/reservations/room/:roomId
+DELETE	/reservations/:id
+
+No changes are needed in Postman if you were already using these URLs.
+
+✅ Why This Structure Works Well
+
+Clear separation of concerns
+
+Easier to extend with more routes
+
+Cleaner index.js
+
+Standard Express Router usage
+
+Scales naturally as the project grows
+
+If you want, the next steps could be:
+
+Extracting validation into middleware
+
+Adding controllers/services
+
+Switching to async/await
+
+Writing tests with Supertest
+
+Just let me know.
