@@ -494,6 +494,8 @@ Just tell me 🚀
 
 PROMPT 4
 ------------------------------------------------------------
+Sinä sanoit:
+
 i want to move this part:
 
 const express = require('express');
@@ -712,7 +714,7 @@ Just say the word 👌
 
 PROMPT 5
 ----------------------------------------------------
-
+Sinä sanoit: 
 I want to only keep the server logic in index.js, move all of the reservation logic to its own folder called routes/reservations.js, I want to use express Router logic.
 
 Below is a clean, production-style Express setup using express.Router(), where:
@@ -913,3 +915,185 @@ Switching to async/await
 Writing tests with Supertest
 
 Just let me know.
+
+PROMPT 6
+--------------------------------------------------------
+Sinä sanoit:
+I need this endpoint only to allow ISO 8601 date formats
+
+
+// Create reservation
+router.post('/', (req, res) => {
+  const { room_id, user_name, start_time, end_time } = req.body;
+
+  if (!room_id || !user_name || !start_time || !end_time) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
+
+  if (new Date(start_time) >= new Date(end_time)) {
+    return res.status(400).json({ error: 'Start time must be before end time' });
+  }
+
+  if (new Date(start_time) <= new Date()) {
+    return res.status(400).json({ error: 'Reservations must be in the future' });
+  }
+
+  const overlapQuery = 
+    SELECT 1 FROM reservations
+    WHERE room_id = ?
+    AND start_time < ?
+    AND end_time > ?
+  ;
+
+  db.get(overlapQuery, [room_id, end_time, start_time], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (row) {
+      return res.status(409).json({
+        error: 'Room already reserved for this time period'
+      });
+    }
+
+    db.run(
+      
+      INSERT INTO reservations (room_id, user_name, start_time, end_time)
+      VALUES (?, ?, ?, ?)
+      ,
+      [room_id, user_name, start_time, end_time],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+
+        res.status(201).json({
+          id: this.lastID,
+          room_id,
+          user_name,
+          start_time,
+          end_time
+        });
+      }
+    );
+  });
+});
+
+To only allow ISO 8601 date-time formats, you need to validate the raw strings before calling new Date(). JavaScript’s Date constructor is permissive and will accept many non-ISO formats unless you block them explicitly.
+
+Below is a safe, strict approach.
+
+1. Define a strict ISO 8601 validator
+
+This regex allows:
+
+YYYY-MM-DDTHH:mm
+
+Optional seconds and milliseconds
+
+Required timezone (Z or ±HH:MM)
+
+const ISO_8601_REGEX =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/;
+
+function isValidISO8601(value) {
+  if (typeof value !== 'string') return false;
+  if (!ISO_8601_REGEX.test(value)) return false;
+
+  const date = new Date(value);
+  return !isNaN(date.getTime());
+}
+
+2. Apply validation before date comparisons
+
+Updated endpoint with ISO 8601 enforcement:
+
+router.post('/', (req, res) => {
+  const { room_id, user_name, start_time, end_time } = req.body;
+
+  if (!room_id || !user_name || !start_time || !end_time) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
+
+  if (!isValidISO8601(start_time) || !isValidISO8601(end_time)) {
+    return res.status(400).json({
+      error: 'Dates must be valid ISO 8601 format (e.g. 2026-01-19T14:30:00Z)'
+    });
+  }
+
+  const startDate = new Date(start_time);
+  const endDate = new Date(end_time);
+  const now = new Date();
+
+  if (startDate >= endDate) {
+    return res.status(400).json({ error: 'Start time must be before end time' });
+  }
+
+  if (startDate <= now) {
+    return res.status(400).json({ error: 'Reservations must be in the future' });
+  }
+
+  const overlapQuery = `
+    SELECT 1 FROM reservations
+    WHERE room_id = ?
+    AND start_time < ?
+    AND end_time > ?
+  `;
+
+  db.get(overlapQuery, [room_id, end_time, start_time], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (row) {
+      return res.status(409).json({
+        error: 'Room already reserved for this time period'
+      });
+    }
+
+    db.run(
+      `
+      INSERT INTO reservations (room_id, user_name, start_time, end_time)
+      VALUES (?, ?, ?, ?)
+      `,
+      [room_id, user_name, start_time, end_time],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+
+        res.status(201).json({
+          id: this.lastID,
+          room_id,
+          user_name,
+          start_time,
+          end_time
+        });
+      }
+    );
+  });
+});
+
+3. Accepted vs rejected examples
+✅ Accepted
+2026-01-19T14:30:00Z
+2026-01-19T14:30:00.123Z
+2026-01-19T14:30:00+02:00
+
+❌ Rejected
+01/19/2026
+2026-01-19 14:30
+2026-01-19T14:30
+2026-01-19T14:30:00 (no timezone)
+
+4. Why this is important
+
+Prevents ambiguous timezone bugs
+
+Ensures consistent DB ordering
+
+Avoids silent parsing differences between runtimes
+
+Makes API contracts explicit
+
+If you want, I can also:
+
+Enforce UTC only
+
+Normalize and store dates as ISO UTC
+
+Add middleware instead of inline validation
+
+Switch to a schema validator like zod or joi
