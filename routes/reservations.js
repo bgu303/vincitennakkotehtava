@@ -122,4 +122,38 @@ router.delete('/:id', (req, res) => {
   );
 });
 
+//Populate reservations table with example data
+//NOTE: Using this example data allows rooms to be reserved twice at the same time, because SQLite doesn't allow UNIQUE constraints when creating tables.
+router.get('/exampledata', (req, res) => {
+  const exampleReservations = [
+    [1, 'Matti Meikäläinen', '2026-03-20T08:00:00.000Z', '2026-03-20T09:00:00.000Z'],
+    [1, 'Liisa Virtanen', '2026-03-20T09:30:00.000Z', '2026-03-20T10:30:00.000Z'],
+    [2, 'Pekka Korhonen', '2026-03-20T10:00:00.000Z', '2026-03-20T11:00:00.000Z'],
+    [2, 'Anna Laine', '2026-03-20T11:30:00.000Z', '2026-03-20T12:30:00.000Z'],
+    [3, 'Jukka Hämäläinen', '2026-03-21T08:00:00.000Z', '2026-03-21T09:00:00.000Z'],
+    [1, 'Sari Nieminen', '2026-03-21T10:00:00.000Z', '2026-03-21T11:00:00.000Z'],
+    [3, 'Mikko Heikkinen', '2026-03-21T09:30:00.000Z', '2026-03-21T10:30:00.000Z'],
+    [4, 'Laura Koskinen', '2026-03-22T12:00:00.000Z', '2026-03-22T13:00:00.000Z'],
+    [4, 'Antti Salonen', '2026-03-22T13:30:00.000Z', '2026-03-22T14:30:00.000Z'],
+    [2, 'Emilia Rantanen', '2026-03-23T15:00:00.000Z', '2026-03-23T16:00:00.000Z']
+  ];
+
+  const stmt = `
+    INSERT INTO reservations (room_id, user_name, start_time, end_time)
+    VALUES (?, ?, ?, ?)
+  `;
+
+  db.serialize(() => {
+    exampleReservations.forEach(reservation => {
+      db.run(stmt, reservation);
+    });
+  });
+
+  res.json({
+    message: 'Example reservation data inserted',
+    count: exampleReservations.length
+  });
+});
+
+
 module.exports = router;

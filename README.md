@@ -152,3 +152,21 @@ Onnistunut vastaus:
   }
 ]
 ```
+
+### GET /reservations/exampledata
+
+Lisää esimerkkidataa tietokantaa testauksen helpottamiseksi.
+
+Method: GET
+
+URL
+
+```
+http://localhost:3000/reservations/exampledata
+```
+
+Onnistunut vastaus:
+
+```
+{"message":"Example reservation data inserted","count":10}
+```
