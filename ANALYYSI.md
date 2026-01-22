@@ -1,0 +1,11 @@
+### 1. Mitä tekoäly teki hyvin?
+
+Tekoälyn tehokkuus yllätti. Olen ChatGPT:tä käyttänyt siitä asti, kun se on julkaistu ja varsinkin tätä tehtävää tehdessäni huomasin, kuinka paljon se on kehittynyt vain muutamassa vuodessa. Se, että API-rajapinta täytti vähimmäisvaatimukset kahdella promptilla oli todella yllättävää. Hyvä esimerkki AI:n tuomasta ajansäästöstä on regex-lausekkeiden tuottaminen (sallimaan vain ISO 8601 päivämäärät), joiden manuaalinen kirjoittaminen on aiemmin vienyt huomattavasti aikaa. Normaali työskentelytapani AI:lla ei ole aikaisemmin ollut näin suoraviivaista, vaan kysynyt pienemmissä osissa ja kirjoittanut koodia itse, jotta samalla oppisi jotain. Tuottavuuden tehokkuuden kannalta tekoäly on lahja maailmalle, mutta välillä kuitenkin mietin, tulenko minä samalla siitä pikkuhiljaa riippuvaiseksi.
+
+### 2. Mitä tekoäly teki huonosti?
+
+Tekoäly ei mielestäni tehnyt mitään merkittäviä virheitä, mutta huomioon pitää ottaa se, että tehtävä ei ollut laajuudeltaan kovin suuri. Lähtökohtaisesti hyvällä promptilla tekoälyltä saa tasan sen, mitä pyytää. Harvoin on enää koodiongelmia, mihin tekoäly ei osaa antaa suoraa vastausta. Tässä tehtävässä niin ei käynyt, mutta jossain harvinaisissa tilanteissa tekoäly lähtee kiertämään rinkiä, eikä saa oikeaa vastausta annettua. Tämän vuoksi tekoälyn tuottama ratkaisu vaatii kehittäjän oman arvioinnin ja testauksen.
+
+### 3. Mitkä olivat tärkeimmät parannukset, jotka teit tekoälyn tuottamaan koodiin ja miksi?
+
+Parantamaan koodin rakennetta modulaarisemmaksi, tehtävässä vaadittiin API-rajapinnalta vain vähän, mutta koodin rakenteen parantaminen semmoiseksi, että jatkokehitys ja ylläpito on helppoa, on mielestäni tärkeää. Tässä kohdassa mietin, että olisiko vanhasta, hyvin rakennetusta koodista parempi katsoa mallia, vai kysyä tekoälyltä uudestaan? Tehtävää ajatellen tässä tapauksessa kysyin uudestaan, mutta omissa projekteissa, jos tiedän, että minulla on jokin osa rakennettu jo (mielestäni) hyvin (esim. tässä tapauksessa kuinka tehdä API-reititys), niin katson siitä mallia tekoälyn käytön sijaan. Kirjoitin myös kattavan README.md:n, jos sattumalta koodia testaava henkilö ei ole kokenut koodaaja ja yleisestikin dokumentaatio on tärkeää. Lisäsin myös esimerkkidatan lisäyksen testauksen helpottamiseksi, mutta tämä ehkä vähän turhaa hifistelyä.
